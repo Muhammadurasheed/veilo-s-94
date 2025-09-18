@@ -5,6 +5,7 @@
 
 import { API_CONFIG, getApiUrl } from '@/config/api';
 import { getCurrentAuthToken, getAuthHeaders } from '@/utils/authUtils';
+import { emergencyApiRequest, isHTMLResponse } from '@/utils/emergencyApiHandler';
 
 export interface APIResponse<T = any> {
   success: boolean;
@@ -54,14 +55,27 @@ export const apiRequest = async <T = any>(
     const responseText = await response.text();
     
     // Check if response is HTML (indicates server error)
-    if (responseText.includes('<!DOCTYPE') || responseText.includes('<html>')) {
-      console.error('❌ Received HTML instead of JSON:', responseText.substring(0, 200));
-      throw new APIError(
-        response.status,
-        response.statusText,
-        responseText,
-        'Server returned HTML instead of JSON. This indicates a server-side error or incorrect routing.'
-      );
+    if (isHTMLResponse(responseText)) {
+      console.error('❌ CRITICAL: Backend returning HTML instead of JSON');
+      console.error('This means the backend server is down, misconfigured, or serving static files');
+      console.error('Response preview:', responseText.substring(0, 200));
+      
+      // Use emergency API handler for graceful degradation
+      const emergencyResult = await emergencyApiRequest<T>(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+          ...options.headers,
+        },
+      });
+      
+      return {
+        success: emergencyResult.success,
+        data: emergencyResult.data,
+        error: emergencyResult.error,
+        status: response.status
+      };
     }
     
     // Try to parse as JSON
@@ -104,6 +118,16 @@ export const apiRequest = async <T = any>(
     console.error('❌ API request error:', error);
     
     if (error instanceof APIError) {
+      // Check if this is an HTML response error
+      if (error.response && isHTMLResponse(error.response)) {
+        console.error('🚨 EMERGENCY MODE: Backend is completely down');
+        return {
+          success: false,
+          error: 'Backend server is unavailable. Please try again later.',
+          status: error.status
+        };
+      }
+      
       return {
         success: false,
         error: error.message,
@@ -164,10 +188,39 @@ export const apiDelete = async <T = any>(endpoint: string): Promise<APIResponse<
  * Specialized services for each domain
  */
 
-// Posts Service
+// Posts Service with Emergency Mode Support
 export const postsService = {
-  getAll: () => apiGet('/api/posts'),
-  create: (postData: any) => apiPost('/api/posts', postData),
+  getAll: async () => {
+    const result = await apiGet('/api/posts');
+    
+    // If backend is down, return emergency posts
+    if (!result.success && result.error?.includes('HTML instead of JSON')) {
+      const { getEmergencyPosts } = await import('@/utils/emergencyApiHandler');
+      const emergencyPosts = getEmergencyPosts();
+      
+      return {
+        success: true,
+        data: emergencyPosts,
+        status: 200,
+        message: 'Loaded from offline storage'
+      };
+    }
+    
+    return result;
+  },
+  
+  create: async (postData: any) => {
+    const result = await apiPost('/api/posts', postData);
+    
+    // If backend is down, use emergency storage
+    if (!result.success && result.error?.includes('HTML instead of JSON')) {
+      const { emergencyCreatePost } = await import('@/utils/emergencyApiHandler');
+      return await emergencyCreatePost(postData);
+    }
+    
+    return result;
+  },
+  
   getById: (id: string) => apiGet(`/api/posts/${id}`),
   update: (id: string, data: any) => apiPut(`/api/posts/${id}`, data),
   delete: (id: string) => apiDelete(`/api/posts/${id}`)

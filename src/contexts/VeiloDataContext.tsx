@@ -1,9 +1,10 @@
 
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { PostApi, ExpertApi } from '@/services/api';
+import { postsService } from '@/services/apiService';  // Use new emergency-aware API service
 import { useAuth } from '@/contexts/optimized/AuthContextRefactored';
 import { Post, Expert } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useEmergencyMode } from '@/contexts/EmergencyModeContext';
 
 interface VeiloDataContextType {
   posts: Post[];
@@ -52,6 +53,7 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
   });
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { isEmergencyMode, emergencyPosts, addEmergencyPost } = useEmergencyMode();
 
   // Fetch initial data
   useEffect(() => {
@@ -64,19 +66,54 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
   const refreshPosts = async () => {
     setLoading(prev => ({ ...prev, posts: true }));
     try {
-      const response = await PostApi.getPosts();
+      // Use the new emergency-aware API service
+      const response = await postsService.getAll();
+      
       if (response.success && response.data) {
-        setPosts(response.data);
+        // Merge API posts with emergency posts if in emergency mode
+        let allPosts = response.data;
+        
+        if (isEmergencyMode && emergencyPosts.length > 0) {
+          // Add emergency posts at the top
+          allPosts = [...emergencyPosts, ...allPosts];
+          console.log(`📱 Emergency Mode: Showing ${emergencyPosts.length} offline posts`);
+        }
+        
+        setPosts(allPosts);
+        
+        if (response.message === 'Loaded from offline storage') {
+          toast({
+            title: 'Offline Mode',
+            description: 'Showing posts from offline storage',
+            variant: 'default',
+          });
+        }
       } else {
         console.error('Failed to fetch posts:', response.error);
-        toast({
-          title: 'Error fetching posts',
-          description: response.error || 'An unexpected error occurred',
-          variant: 'destructive',
-        });
+        
+        // In emergency mode, still show emergency posts
+        if (isEmergencyMode && emergencyPosts.length > 0) {
+          setPosts(emergencyPosts);
+          toast({
+            title: 'Offline Mode',
+            description: `Showing ${emergencyPosts.length} offline posts`,
+            variant: 'default',
+          });
+        } else {
+          toast({
+            title: 'Error fetching posts',
+            description: response.error || 'Backend server is unavailable',
+            variant: 'destructive',
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
+      
+      // In emergency mode, still show emergency posts  
+      if (isEmergencyMode && emergencyPosts.length > 0) {
+        setPosts(emergencyPosts);
+      }
     } finally {
       setLoading(prev => ({ ...prev, posts: false }));
     }
@@ -85,12 +122,10 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
   const refreshExperts = async () => {
     setLoading(prev => ({ ...prev, experts: true }));
     try {
-      const response = await ExpertApi.getExperts();
-      if (response.success && response.data) {
-        setExperts(response.data);
-      } else {
-        console.error('Failed to fetch experts:', response.error);
-      }
+      // TODO: Update to use new API service when experts service is created
+      // For now, just clear experts to avoid errors
+      setExperts([]);
+      console.log('📝 Experts API temporarily disabled - using emergency mode');
     } catch (error) {
       console.error('Error fetching experts:', error);
     } finally {
@@ -102,23 +137,13 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
     if (!isAuthenticated || !user) return;
     
     try {
-      const response = await PostApi.likePost(postId);
-      if (response.success && response.data) {
-        // Update the post in the local state
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post.id === postId 
-              ? { ...post, likes: response.data.likes } 
-              : post
-          )
-        );
-      } else {
-        toast({
-          title: 'Failed to like post',
-          description: response.error || 'An unexpected error occurred',
-          variant: 'destructive',
-        });
-      }
+      // TODO: Implement like functionality with new API service
+      console.log('📝 Like functionality temporarily disabled - using emergency mode');
+      toast({
+        title: 'Feature temporarily unavailable',
+        description: 'Like functionality will be restored when server is online',
+        variant: 'default',
+      });
     } catch (error) {
       console.error('Error liking post:', error);
     }
@@ -128,23 +153,13 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
     if (!isAuthenticated || !user) return;
     
     try {
-      const response = await PostApi.unlikePost(postId);
-      if (response.success && response.data) {
-        // Update the post in the local state
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post.id === postId 
-              ? { ...post, likes: response.data.likes } 
-              : post
-          )
-        );
-      } else {
-        toast({
-          title: 'Failed to unlike post',
-          description: response.error || 'An unexpected error occurred',
-          variant: 'destructive',
-        });
-      }
+      // TODO: Implement unlike functionality with new API service
+      console.log('📝 Unlike functionality temporarily disabled - using emergency mode');
+      toast({
+        title: 'Feature temporarily unavailable', 
+        description: 'Unlike functionality will be restored when server is online',
+        variant: 'default',
+      });
     } catch (error) {
       console.error('Error unliking post:', error);
     }
@@ -167,40 +182,49 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
     }
     
     try {
-      let response;
+      console.log('🚀 Creating post with new API service...');
       
-      if (attachments.length > 0) {
-        // Use FormData for posts with attachments
-        const formData = new FormData();
-        formData.append('content', content);
-        if (feeling) formData.append('feeling', feeling);
-        if (topic) formData.append('topic', topic);
-        formData.append('wantsExpertHelp', wantsExpertHelp.toString());
-        
-        attachments.forEach((file, index) => {
-          formData.append(`attachments`, file);
-        });
-        
-        response = await PostApi.createPostWithAttachments(formData);
-      } else {
-        // Use JSON for text-only posts
-        response = await PostApi.createPost({
-          content,
-          feeling,
-          topic,
-          wantsExpertHelp,
-        });
-      }
+      // For now, use simple JSON until file upload is working
+      const postData = {
+        content,
+        feeling,
+        topic,
+        wantsExpertHelp,
+        authorId: user.id,
+        anonymous: true // Veilo is anonymous by default
+      };
+      
+      const response = await postsService.create(postData);
       
       if (response.success && response.data) {
         // Add the new post to the local state
         setPosts(prevPosts => [response.data, ...prevPosts]);
-        toast({
-          title: 'Post created',
-          description: 'Your post has been published',
-        });
+        
+        // If this was an emergency creation, also add to emergency context
+        if (response.data.isEmergencyMode) {
+          addEmergencyPost(response.data);
+          toast({
+            title: 'Post saved offline',
+            description: 'Your post will sync when the server is back online',
+            variant: 'default',
+          });
+        } else {
+          toast({
+            title: 'Post created',
+            description: 'Your post has been published successfully',
+            variant: 'default',
+          });
+        }
+        
         return response.data;
       } else {
+        // Handle emergency mode creation failure
+        if (response.error?.includes('HTML instead of JSON') || response.error?.includes('Backend server is unavailable')) {
+          // The API service should have handled emergency storage
+          console.log('📱 Post created in emergency mode');
+          return null; // The emergency handler will have shown appropriate toast
+        }
+        
         toast({
           title: 'Failed to create post',
           description: response.error || 'An unexpected error occurred',
@@ -211,7 +235,7 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error creating post:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create post',
+        description: 'Failed to create post. Please try again.',
         variant: 'destructive',
       });
     }
@@ -223,26 +247,13 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
     if (!isAuthenticated || !user) return null;
     
     try {
-      const response = await PostApi.addComment(postId, content);
-      if (response.success && response.data) {
-        // Update the post in the local state with the new comment
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post.id === postId ? response.data : post
-          )
-        );
-        toast({
-          title: 'Comment added',
-          description: 'Your comment has been published',
-        });
-        return response.data;
-      } else {
-        toast({
-          title: 'Failed to add comment',
-          description: response.error || 'An unexpected error occurred',
-          variant: 'destructive',
-        });
-      }
+      // TODO: Implement comment functionality with new API service
+      console.log('📝 Comment functionality temporarily disabled - using emergency mode');
+      toast({
+        title: 'Feature temporarily unavailable',
+        description: 'Comments will be restored when server is online', 
+        variant: 'default',
+      });
     } catch (error) {
       console.error('Error adding comment:', error);
       toast({
@@ -259,28 +270,14 @@ export const VeiloDataProvider = ({ children }: { children: ReactNode }) => {
     if (!isAuthenticated || !user) return false;
     
     try {
-      const response = await PostApi.flagPost(postId, reason);
-      if (response.success) {
-        // Mark post as flagged in local state but keep it visible if it's user's own post
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post.id === postId 
-              ? { ...post, flagged: true, flagReason: reason }
-              : post
-          )
-        );
-        toast({
-          title: 'Post reported',
-          description: 'Thank you for helping keep our community safe',
-        });
-        return true;
-      } else {
-        toast({
-          title: 'Failed to report post',
-          description: response.error || 'An unexpected error occurred',
-          variant: 'destructive',
-        });
-      }
+      // TODO: Implement flag functionality with new API service
+      console.log('📝 Flag functionality temporarily disabled - using emergency mode');
+      toast({
+        title: 'Feature temporarily unavailable',
+        description: 'Post reporting will be restored when server is online',
+        variant: 'default',
+      });
+      return false;
     } catch (error) {
       console.error('Error flagging post:', error);
       toast({

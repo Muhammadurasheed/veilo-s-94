@@ -77,7 +77,7 @@ export const useAdminAuth = () => {
         });
         
         // Navigate to admin panel after successful login
-        navigate('/admin/dashboard');
+        navigate('/admin');
         
         return { success: true };
       } else {

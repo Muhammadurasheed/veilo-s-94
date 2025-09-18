@@ -5,6 +5,8 @@ import { HelmetProvider } from 'react-helmet-async';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/optimized/AuthContextRefactored';
+import { VeiloDataProvider } from '@/contexts/VeiloDataContext';
+import { EmergencyModeProvider } from '@/contexts/EmergencyModeContext';
 import { SmartRouter } from '@/components/routing/SmartRouter';
 import { Toaster } from '@/components/ui/toaster';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -74,9 +76,11 @@ const App: React.FC = () => {
       <HelmetProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <AuthProvider>
-              <ErrorBoundary fallback={AuthErrorFallback}>
-                <SmartRouter>
+            <EmergencyModeProvider>
+              <AuthProvider>
+                <VeiloDataProvider>
+                  <ErrorBoundary fallback={AuthErrorFallback}>
+                    <SmartRouter>
               <Routes>
                 <Route path="/" element={
                   <ProtectedRoute requireAuth={false}>
@@ -166,7 +170,9 @@ const App: React.FC = () => {
               </SmartRouter>
               <Toaster />
             </ErrorBoundary>
-          </AuthProvider>
+                </VeiloDataProvider>
+           </AuthProvider>
+            </EmergencyModeProvider>
         </ThemeProvider>
         </QueryClientProvider>
       </HelmetProvider>
