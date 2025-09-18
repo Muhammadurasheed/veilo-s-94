@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { AuthDebugPanel } from '@/components/debug/AuthDebugPanel';
-import { SEOHead } from '@/components/SEOHead';
+import { SEOHead } from '@/components/seo/SEOHead';
 
 export default function AuthDebug() {
   return (

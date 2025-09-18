@@ -124,7 +124,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
       x: 0,
       width: isMobile ? '100%' : '16rem',
       transition: { 
-        type: 'spring', 
+        type: 'spring' as const, 
         stiffness: 300, 
         damping: 30
       }
@@ -133,7 +133,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
       x: isMobile ? '-100%' : 0,
       width: isMobile ? '100%' : '4rem',
       transition: { 
-        type: 'spring', 
+        type: 'spring' as const, 
         stiffness: 300, 
         damping: 30
       }

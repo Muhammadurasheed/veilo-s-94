@@ -135,7 +135,7 @@ export const EnhancedAnimatedReactionSystem: React.FC<EnhancedAnimatedReactionSy
       rotate: [0, 10, -10, 0],
       transition: {
         duration: 3,
-        ease: [0.25, 0.46, 0.45, 0.94],
+        ease: [0.25, 0.46, 0.45, 0.94] as any,
         times: [0, 0.2, 0.8, 1]
       }
     }

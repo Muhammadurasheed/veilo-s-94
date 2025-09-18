@@ -113,7 +113,10 @@ export const EnhancedFlagshipSanctuary: React.FC = () => {
     // Update participants from session state automatically
     if (socket.sessionState) {
       console.log('📊 Updating participants from enhanced session state:', socket.sessionState);
-      setParticipants(socket.sessionState.participants);
+      setParticipants(socket.sessionState.participants.map((p: any) => ({
+        ...p,
+        isConnected: p.isConnected !== undefined ? p.isConnected : true
+      })));
     }
 
     const handleBreakoutRoomJoined = (data: any) => {
