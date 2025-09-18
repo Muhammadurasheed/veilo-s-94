@@ -14,7 +14,7 @@ console.log('=====================================');
 
 // Set environment variables
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
-process.env.PORT = process.env.PORT || 3001;
+process.env.PORT = process.env.PORT || 3001; // Fixed: Backend uses port 3001, not 3000
 
 console.log(`Environment: ${process.env.NODE_ENV}`);
 console.log(`Port: ${process.env.PORT}`);

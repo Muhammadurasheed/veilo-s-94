@@ -3,9 +3,9 @@
  * Centralized configuration for all API endpoints and URLs
  */
 
-// Backend URL Configuration
+// Backend URL Configuration - Fixed Integration
 export const API_CONFIG = {
-  // Base URLs
+  // Base URLs - Production backend as primary
   BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://veilos-backend.onrender.com',
   BACKEND_URL: import.meta.env.VITE_BACKEND_URL || 'https://veilos-backend.onrender.com',
   API_URL: import.meta.env.VITE_API_URL || 'https://veilos-backend.onrender.com',
@@ -14,8 +14,8 @@ export const API_CONFIG = {
   SOCKET_URL: import.meta.env.VITE_BACKEND_URL || 'https://veilos-backend.onrender.com',
   WS_URL: (import.meta.env.VITE_BACKEND_URL || 'https://veilos-backend.onrender.com').replace('http', 'ws'),
   
-  // Development fallbacks
-  DEV_FALLBACK: import.meta.env.DEV ? '' : 'https://veilos-backend.onrender.com',
+  // Development fallbacks - Fixed port to 3001 for local backend
+  DEV_FALLBACK: import.meta.env.DEV ? 'http://localhost:3001' : 'https://veilos-backend.onrender.com',
   
   // Environment detection
   IS_DEVELOPMENT: import.meta.env.DEV,

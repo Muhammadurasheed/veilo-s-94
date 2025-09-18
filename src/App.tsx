@@ -7,6 +7,8 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/optimized/AuthContextRefactored';
 import { VeiloDataProvider } from '@/contexts/VeiloDataContext';
 import { EmergencyModeProvider } from '@/contexts/EmergencyModeContext';
+import backendHealthService from '@/services/backendHealthService';
+import backendConnectionManager from '@/services/backendConnectionManager';
 import { SmartRouter } from '@/components/routing/SmartRouter';
 import { Toaster } from '@/components/ui/toaster';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
