@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Render Service Status Checker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; font-weight: bold; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        .urgent { border: 3px solid #dc3545; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 Render Backend Status Checker</h1>
+        <div class="status error urgent">
+            <strong>URGENT:</strong> Your backend appears to be down. This tool will help diagnose the issue.
+        </div>
+        
+        <button onclick="checkAllEndpoints()">🔍 Check All Endpoints</button>
+        <button onclick="checkRenderStatus()">🌐 Check Render Status</button>
+        <button onclick="testDatabaseConnection()">🗄️ Test Database</button>
+        <button onclick="showSolutions()">💡 Show Solutions</button>
+        
+        <div id="results"></div>
+        <div id="solutions" style="display: none;">
+            <div class="status warning">
+                <h3>🛠️ Immediate Solutions</h3>
+                <ol>
+                    <li><strong>Go to Render Dashboard:</strong> <a href="https://dashboard.render.com" target="_blank">dashboard.render.com</a></li>
+                    <li><strong>Check Service Status:</strong> Look for your backend service and check if it's "Live" or has errors</li>
+                    <li><strong>Check Logs:</strong> Click on your service → "Logs" tab to see error messages</li>
+                    <li><strong>Manual Redeploy:</strong> Click "Manual Deploy" → "Deploy latest commit"</li>
+                    <li><strong>Check Environment Variables:</strong> Ensure all required env vars are set</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://veilos-backend.onrender.com';
+        
+        function addResult(title, success, message, details = '') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${success ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <h3>${success ? '✅' : '❌'} ${title}</h3>
+                <p>${message}</p>
+                ${details ? `<pre>${details}</pre>` : ''}
+                <small>Checked at: ${new Date().toLocaleString()}</small>
+            `;
+            results.appendChild(div);
+        }
+        
+        async function checkAllEndpoints() {
+            document.getElementById('results').innerHTML = '';
+            
+            const endpoints = [
+                { name: 'Root', url: BACKEND_URL },
+                { name: 'Health Check', url: `${BACKEND_URL}/health` },
+                { name: 'API Health', url: `${BACKEND_URL}/api/health` },
+                { name: 'Auth Endpoint', url: `${BACKEND_URL}/api/auth/login` }
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000);
+                    
+                    const response = await fetch(endpoint.url, {
+                        method: endpoint.name === 'Auth Endpoint' ? 'POST' : 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: endpoint.name === 'Auth Endpoint' ? JSON.stringify({}) : undefined,
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        const data = await response.text();
+                        addResult(endpoint.name, true, `Responding (${response.status})`, data.substring(0, 500));
+                    } else {
+                        addResult(endpoint.name, false, `HTTP ${response.status}: ${response.statusText}`, await response.text());
+                    }
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        addResult(endpoint.name, false, 'Timeout (10s) - Service not responding', 'This indicates the backend is down or very slow');
+                    } else {
+                        addResult(endpoint.name, false, 'Connection failed', error.message);
+                    }
+                }
+            }
+        }
+        
+        async function checkRenderStatus() {
+            addResult('Render Status', false, 'Cannot check Render status directly from browser', 
+                'Please manually check:\n1. Go to dashboard.render.com\n2. Check your service status\n3. Look for error messages in logs');
+        }
+        
+        async function testDatabaseConnection() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/health`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    addResult('Database Connection', true, 'Backend is responding, database likely OK', await response.text());
+                } else {
+                    addResult('Database Connection', false, 'Backend not responding - could be database issue', 'Check MongoDB connection in Render logs');
+                }
+            } catch (error) {
+                addResult('Database Connection', false, 'Cannot test - backend is down', 'Check MongoDB URI and connection in Render dashboard');
+            }
+        }
+        
+        function showSolutions() {
+            document.getElementById('solutions').style.display = 'block';
+        }
+        
+        // Auto-run check on page load
+        window.onload = () => {
+            checkAllEndpoints();
+            showSolutions();
+        };
+    </script>
+</body>
+</html>
