@@ -3,24 +3,42 @@
  * Centralized configuration for all API endpoints and URLs
  */
 
-// Backend URL Configuration - Fixed Integration
+// Backend URL Configuration - Smart Local Development Support
+const getBackendUrl = () => {
+  // In development, use local backend if VITE_API_BASE_URL points to localhost
+  // Otherwise fallback to production backend
+  if (import.meta.env.DEV) {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  }
+  // In production, always use production backend
+  return import.meta.env.VITE_API_BASE_URL || 'https://veilos-backend.onrender.com';
+};
+
+const backendUrl = getBackendUrl();
+
 export const API_CONFIG = {
-  // Base URLs - Production backend as primary
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://veilos-backend.onrender.com',
-  BACKEND_URL: import.meta.env.VITE_BACKEND_URL || 'https://veilos-backend.onrender.com',
-  API_URL: import.meta.env.VITE_API_URL || 'https://veilos-backend.onrender.com',
+  // Base URLs - Smart backend selection
+  BASE_URL: backendUrl,
+  BACKEND_URL: backendUrl,
+  API_URL: backendUrl,
   
   // WebSocket URLs
-  SOCKET_URL: import.meta.env.VITE_BACKEND_URL || 'https://veilos-backend.onrender.com',
-  WS_URL: (import.meta.env.VITE_BACKEND_URL || 'https://veilos-backend.onrender.com').replace('http', 'ws'),
+  SOCKET_URL: backendUrl,
+  WS_URL: backendUrl.replace('http', 'ws'),
   
-  // Development fallbacks - Fixed port to 3001 for local backend
-  DEV_FALLBACK: import.meta.env.DEV ? 'http://localhost:3001' : 'https://veilos-backend.onrender.com',
+  // Development fallbacks
+  DEV_FALLBACK: 'http://localhost:3001',
   
   // Environment detection
   IS_DEVELOPMENT: import.meta.env.DEV,
   IS_PRODUCTION: import.meta.env.PROD,
 } as const;
+
+console.log('🔗 API Configuration initialized:', {
+  environment: import.meta.env.DEV ? 'development' : 'production',
+  backendUrl: backendUrl,
+  socketUrl: API_CONFIG.SOCKET_URL
+});
 
 // API Endpoints
 export const API_ENDPOINTS = {
